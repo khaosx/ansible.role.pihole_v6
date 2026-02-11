@@ -1,0 +1,18 @@
+---
+
+- name: Restart Unbound
+  ansible.builtin.service:
+    name: unbound
+    state: restarted
+
+- name: Restart Pi-hole FTL
+  ansible.builtin.service:
+    name: pihole-FTL
+    state: restarted
+
+- name: Update Pi-hole gravity
+  ansible.builtin.command: pihole -g
+  register: _pihole_v6_gravity_run
+  changed_when: "'No changes detected' not in _pihole_v6_gravity_run.stdout"
+  failed_when: _pihole_v6_gravity_run.rc != 0
+  when: pihole_v6_trigger_gravity | bool

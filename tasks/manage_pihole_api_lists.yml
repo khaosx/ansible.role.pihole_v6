@@ -1,0 +1,102 @@
+---
+
+- name: Assert Pi-hole admin password is provided
+  ansible.builtin.assert:
+    that:
+      - pihole_v6_admin_password is string
+      - pihole_v6_admin_password | length > 0
+    fail_msg: "pihole_v6_admin_password must be set to manage lists via API."
+  no_log: true
+
+- name: Wait for Pi-hole web API to be reachable
+  ansible.builtin.wait_for:
+    host: "{{ pihole_v6_api_host }}"
+    port: "{{ pihole_v6_api_port }}"
+    timeout: "{{ pihole_v6_api_wait_timeout }}"
+
+- name: Authenticate to Pi-hole v6 API and get tokens
+  ansible.builtin.uri:
+    url: "{{ pihole_v6_api_base_url }}/api/auth"
+    method: POST
+    body_format: json
+    body:
+      password: "{{ pihole_v6_admin_password }}"
+    return_content: true
+    follow_redirects: all
+    status_code: 200
+    timeout: "{{ pihole_v6_api_timeout }}"
+    validate_certs: "{{ pihole_v6_api_validate_certs }}"
+  register: pihole_v6_auth
+  no_log: true
+
+- name: Build v6 session and CSRF headers
+  ansible.builtin.set_fact:
+    pihole_v6_auth_header:
+      Cookie: "sid={{ pihole_v6_auth.json.session.sid }}"
+      X-CSRF-TOKEN: "{{ pihole_v6_auth.json.session.csrf }}"
+  when:
+    - pihole_v6_auth.json.session.sid is defined
+    - pihole_v6_auth.json.session.csrf is defined
+  no_log: true
+
+- name: Get current adlists (v6 API)
+  ansible.builtin.uri:
+    url: "{{ pihole_v6_api_base_url }}/api/lists"
+    method: GET
+    headers: "{{ pihole_v6_auth_header }}"
+    return_content: true
+    follow_redirects: all
+    status_code: 200
+    timeout: "{{ pihole_v6_api_timeout }}"
+    validate_certs: "{{ pihole_v6_api_validate_certs }}"
+  register: pihole_v6_lists_get
+  when: pihole_v6_auth_header is defined
+  no_log: true
+
+- name: Extract current adlist addresses (v6 API)
+  ansible.builtin.set_fact:
+    pihole_v6_current_adlists: "{{ pihole_v6_lists_get.json.lists | map(attribute='address') | list }}"
+  when:
+    - pihole_v6_auth_header is defined
+    - pihole_v6_lists_get.json.lists is defined
+
+- name: Ensure desired adlists are present
+  ansible.builtin.uri:
+    url: "{{ pihole_v6_api_base_url }}/api/lists?type={{ item.type }}"
+    method: POST
+    headers: "{{ pihole_v6_auth_header }}"
+    body_format: json
+    body:
+      address: "{{ item.address }}"
+      comment: "{{ item.comment | default('managed-by-ansible') }}"
+      groups: "{{ item.groups | default([0]) }}"
+      enabled: "{{ (item.enabled | default(true)) | bool }}"
+    follow_redirects: all
+    status_code: [200, 201]
+    timeout: "{{ pihole_v6_api_timeout }}"
+    validate_certs: "{{ pihole_v6_api_validate_certs }}"
+  loop: "{{ pihole_v6_adlists_present }}"
+  loop_control:
+    label: "{{ item.address }}"
+  when:
+    - pihole_v6_auth_header is defined
+    - item.address not in pihole_v6_current_adlists
+  notify: Update Pi-hole gravity
+  no_log: true
+
+- name: Delete default adlist (if present)
+  ansible.builtin.uri:
+    url: >-
+      {{ pihole_v6_api_base_url }}/api/lists/{{ pihole_v6_default_list_address | urlencode }}?type=block
+    method: DELETE
+    headers: "{{ pihole_v6_auth_header }}"
+    follow_redirects: all
+    status_code: [200, 204]
+    timeout: "{{ pihole_v6_api_timeout }}"
+    validate_certs: "{{ pihole_v6_api_validate_certs }}"
+  when:
+    - pihole_v6_auth_header is defined
+    - pihole_v6_delete_default_list | bool
+    - pihole_v6_default_list_address in pihole_v6_current_adlists
+  notify: Update Pi-hole gravity
+  no_log: true

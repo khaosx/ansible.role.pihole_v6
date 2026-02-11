@@ -1,0 +1,54 @@
+---
+- name: Fetch the IP address of the interface PiHole is using
+  ansible.builtin.set_fact:
+    pihole_v6_bind_addr: "{{ ansible_default_ipv4.address }}"
+
+- name: "PiHole: Ensure DNS resolution of pi-hole.net is successful"
+  ansible.builtin.command: dig +short pi-hole.net @{{ pihole_v6_bind_addr }}
+  register: pihole_v6_dns_pi_hole_net
+  failed_when: pihole_v6_dns_pi_hole_net.stdout == ""
+  changed_when: false
+
+# This domain comes from the StevenBlack/hosts list
+# See: https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+- name: "PiHole: Ensure DNS resolution of an ad domain is unsuccessful"
+  ansible.builtin.command: dig +short es.000webhost.com @{{ pihole_v6_bind_addr }}
+  register: pihole_v6_dns_ad_domain
+  # Valid responses include an answer for '0.0.0.0' or simply no answer.
+  # Fail only if we got a non-empty response that isn't 0.0.0.0
+  failed_when: pihole_v6_dns_ad_domain.stdout != "" and ('0.0.0.0' not in pihole_v6_dns_ad_domain.stdout)
+  changed_when: false
+
+- name: "PiHole: Ensure DNSSEC validation returns SERVFAIL when expected"
+  when: pihole_v6_setup_dnssec | default(false)
+  ansible.builtin.command: dig +short sigfail.verteiltesysteme.net @{{ pihole_v6_bind_addr }}
+  register: pihole_v6_dnssec_sigfail
+  # SERVFAIL -> no answer with +short; fail if we did get an answer
+  failed_when: pihole_v6_dnssec_sigfail.stdout != ""
+  changed_when: false
+
+- name: "PiHole: Ensure DNSSEC validation returns NOERROR and an IP address when expected"
+  when: pihole_v6_setup_dnssec | default(false)
+  ansible.builtin.command: dig +short sigok.verteiltesysteme.net @{{ pihole_v6_bind_addr }}
+  register: pihole_v6_dnssec_sigok
+  # NOERROR should produce at least one address
+  failed_when: pihole_v6_dnssec_sigok.stdout == ""
+  changed_when: false
+
+# GPL Notice:
+#
+# pihole-dns - an Ansible playbook to configure a PiHole DNS server
+# Copyright (C) 2024  Charles German <5donuts@pm.me>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>

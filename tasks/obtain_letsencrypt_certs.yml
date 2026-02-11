@@ -1,0 +1,105 @@
+---
+
+- name: Assert CF token present
+  ansible.builtin.assert:
+    that: pihole_v6_tls_cloudflare_api_token | length > 0
+    fail_msg: "Missing Cloudflare token (pihole_v6_tls_cloudflare_api_token)."
+  no_log: true
+
+
+- name: Install certbot + DNS plugin
+  ansible.builtin.apt:
+    name: "{{ pihole_v6_tls_packages }}"
+    state: present
+    update_cache: true
+
+- name: Create credentials directory
+  ansible.builtin.file:
+    path: "{{ pihole_v6_tls_cf_creds_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write Cloudflare credentials
+  ansible.builtin.template:
+    src: cloudflare.ini.j2
+    dest: "{{ pihole_v6_tls_cf_creds_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Check if live cert already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ pihole_v6_tls_domain }}/fullchain.pem"
+  register: pihole_v6_live_cert
+
+- name: Obtain certificate from Let's Encrypt
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/certbot
+      - certonly
+      - --non-interactive
+      - --agree-tos
+      - --email
+      - "{{ pihole_v6_tls_email }}"
+      - --dns-cloudflare
+      - --dns-cloudflare-credentials
+      - "{{ pihole_v6_tls_cf_creds_file }}"
+      - --dns-cloudflare-propagation-seconds
+      - "{{ pihole_v6_tls_dns_propagation_seconds | string }}"
+      - --server
+      - "{{ pihole_v6_tls_acme_directory_urls[pihole_v6_tls_acme_server] }}"
+      - -d
+      - "{{ pihole_v6_tls_domain }}"
+  register: pihole_v6_certbot_issue
+  retries: "{{ pihole_v6_tls_issue_retries | int + 1 }}"
+  delay: "{{ pihole_v6_tls_issue_delay_seconds | int }}"
+  until: pihole_v6_certbot_issue.rc == 0
+  changed_when: not pihole_v6_live_cert.stat.exists
+  when: not pihole_v6_live_cert.stat.exists
+
+- name: Ensure Certbot deploy-hook directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install deploy hook for renewals
+  ansible.builtin.template:
+    src: pihole-ftl-renewal.sh.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/pihole-ftl-renewal.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Rebuild Pi-hole PEM from LE fullchain+key if content differs (POSIX sh)
+  ansible.builtin.shell: |
+    set -eu
+    LIVE_DIR="/etc/letsencrypt/live/{{ pihole_v6_tls_domain }}"
+    TMP="$(mktemp)"
+    trap 'rm -f "$TMP"' EXIT
+    cat "$LIVE_DIR/fullchain.pem" "$LIVE_DIR/privkey.pem" > "$TMP"
+    if ! cmp -s "$TMP" "{{ pihole_v6_tls_pem_path }}"; then
+      install -m {{ pihole_v6_tls_pem_mode | quote }} \
+        -o {{ pihole_v6_tls_pem_owner | quote }} \
+        -g {{ pihole_v6_tls_pem_group | quote }} \
+        "$TMP" "{{ pihole_v6_tls_pem_path }}"
+      echo CHANGED
+    fi
+  register: pihole_v6_pem_update
+  changed_when: "'CHANGED' in pihole_v6_pem_update.stdout"
+  when:
+    - pihole_v6_live_cert.stat.exists or (pihole_v6_certbot_issue is defined and pihole_v6_certbot_issue.rc == 0)
+  notify: Restart Pi-hole FTL
+
+- name: Ensure correct permissions on Pi-hole PEM file
+  ansible.builtin.file:
+    path: "{{ pihole_v6_tls_pem_path }}"
+    owner: "{{ pihole_v6_tls_pem_owner }}"
+    group: "{{ pihole_v6_tls_pem_group }}"
+    mode: "{{ pihole_v6_tls_pem_mode }}"
+  when: pihole_v6_live_cert.stat.exists or pihole_v6_certbot_issue.changed

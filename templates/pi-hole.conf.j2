@@ -1,0 +1,20 @@
+# {{ ansible_managed | comment }}
+#
+server:
+  interface: {{ pihole_v6_listen_address }}
+  port: {{ pihole_v6_listen_port }}
+  do-ip6: no
+  # Allow UDP (and TCP) queries from localhost
+  do-udp: yes
+  do-tcp: yes
+  access-control: 127.0.0.0/8 allow
+
+  root-hints: "/etc/unbound/root.hints"
+  hide-identity: yes
+  hide-version: yes
+  harden-glue: yes
+  harden-dnssec-stripped: yes
+  use-caps-for-id: yes
+  qname-minimisation: yes
+  cache-min-ttl: 3600
+  cache-max-ttl: 86400

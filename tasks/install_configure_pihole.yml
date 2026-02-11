@@ -1,0 +1,67 @@
+---
+
+- name: Create pihole group
+  ansible.builtin.group:
+    name: pihole
+    state: present
+
+- name: Create pihole user
+  ansible.builtin.user:
+    name: pihole
+    home: "/home/pihole"
+    shell: "/usr/sbin/nologin"
+    comment: "PiHole"
+    group: pihole
+    password: "*"
+    state: present
+
+- name: Create /etc/pihole directory
+  ansible.builtin.file:
+    path: /etc/pihole
+    state: directory
+    owner: pihole
+    group: pihole
+    mode: "0775"
+
+- name: Deploy pihole.toml
+  ansible.builtin.template:
+    src: pihole.toml.j2
+    dest: /etc/pihole/pihole.toml
+    owner: pihole
+    group: pihole
+    mode: "0644"
+    force: "{{ pihole_v6_toml_force | bool }}"
+  notify: Restart Pi-hole FTL
+
+- name: Check for Pi-Hole binary
+  ansible.builtin.stat:
+    path: /usr/local/bin/pihole
+  register: pihole_v6_installed
+  changed_when: false
+
+- name: Install and configure Pihole
+  when: not pihole_v6_installed.stat.exists
+  notify: Restart Pi-hole FTL
+  block:
+
+    - name: Download Pi-hole installation script
+      ansible.builtin.get_url:
+        url: "{{ pihole_v6_install_script_url }}"
+        dest: /tmp/pihole-install.sh
+        mode: "0755"
+
+    - name: Run Pi-hole installer non-interactively
+      ansible.builtin.command: bash /tmp/pihole-install.sh --unattended
+      args:
+        creates: /etc/systemd/system/pihole-FTL.service
+
+- name: Ensure Pi-hole FTL is enabled & running
+  ansible.builtin.service:
+    name: pihole-FTL
+    enabled: true
+    state: started
+
+- name: Clean up Pi-hole installer script
+  ansible.builtin.file:
+    path: /tmp/pihole-install.sh
+    state: absent

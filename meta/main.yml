@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: pihole_v6
+  namespace: khaosx
+  author: Kris
+  description: Install and configure Pi-hole v6 on Ubuntu with optional Unbound, TLS, and API-managed adlists.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+  galaxy_tags:
+    - pihole
+    - dns
+    - adblock
+    - ubuntu
+dependencies: []

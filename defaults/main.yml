@@ -1,0 +1,93 @@
+---
+# Feature toggles
+pihole_v6_install_unbound: true
+pihole_v6_enable_tls: true
+pihole_v6_enable_tests: false
+pihole_v6_setup_dnssec: false
+pihole_v6_ufw_enable: true
+
+# UFW
+pihole_v6_ufw_profile:
+  name: "PiholeV6"
+  title: "Pi-hole v6"
+  description: "DNS, DHCP, NTP, and Web UI for Pi-hole v6"
+  ports:
+    - "53"
+    - "67/udp"
+    - "123/udp"
+    - "80/tcp"
+    - "443/tcp"
+
+# Install
+pihole_v6_install_script_url: "https://install.pi-hole.net"
+
+# Unbound
+pihole_v6_listen_address: "127.0.0.1"
+pihole_v6_listen_port: 5335
+pihole_v6_unbound_root_hints_url: "https://www.internic.net/domain/named.cache"
+
+# API access
+pihole_v6_admin_password: "{{ app_admin_user_pw }}"
+pihole_v6_port: 80
+pihole_v6_api_scheme: "http"
+pihole_v6_api_host: "{{ ansible_host | default(ansible_fqdn | default(inventory_hostname)) }}"
+pihole_v6_api_port: "{{ pihole_v6_port }}"
+pihole_v6_api_validate_certs: false
+pihole_v6_api_timeout: 30
+pihole_v6_api_wait_timeout: 60
+pihole_v6_api_base_url: "{{ pihole_v6_api_scheme }}://{{ pihole_v6_api_host }}:{{ pihole_v6_api_port }}"
+
+# pihole.toml seeding
+pihole_v6_toml_force: false
+pihole_v6_local_domain: "{{ site_domain | default('local') }}"
+
+# Web UI
+pihole_v6_web_domain: "{{ inventory_hostname }}.{{ site_domain }}"
+pihole_v6_webserver_acl: ""
+pihole_v6_webserver_ports: >-
+  {{ "80,443os,[::]:80o,[::]:443os" if pihole_v6_enable_tls | bool else "80,[::]:80o" }}
+pihole_v6_webserver_pwhash: "{{ vault_pihole_webserver_pwhash }}"
+pihole_v6_webserver_app_pwhash: "{{ vault_pihole_webserver_app_pwhash }}"
+
+# Adlists
+pihole_v6_adlists_present:
+  - address: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/pro.txt"
+    type: "block"
+    comment: "HaGeZi - Pro DNS Blocklist"
+    groups: [0]
+    enabled: true
+  - address: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt"
+    type: "block"
+    comment: "HaGeZi - TIF DNS Blocklist"
+    groups: [0]
+    enabled: true
+
+pihole_v6_default_list_address: "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+pihole_v6_delete_default_list: true
+pihole_v6_trigger_gravity: true
+
+# TLS (Let's Encrypt DNS-01 via Cloudflare)
+pihole_v6_tls_domain: "{{ inventory_hostname }}.{{ site_domain }}"
+pihole_v6_tls_email: "{{ configure_ssl_email | default('root@localhost') }}"
+pihole_v6_tls_pem_path: "/etc/pihole/tls.pem"
+pihole_v6_tls_cloudflare_api_token: "{{ configure_ssl_cloudflare_api_token | default('') }}"
+
+pihole_v6_tls_pem_owner: "root"
+pihole_v6_tls_pem_group: "pihole"
+pihole_v6_tls_pem_mode: "0640"
+
+pihole_v6_tls_cf_creds_dir: "/root/.secrets/certbot"
+pihole_v6_tls_cf_creds_file: "{{ pihole_v6_tls_cf_creds_dir }}/cloudflare.ini"
+
+pihole_v6_tls_packages:
+  - certbot
+  - python3-certbot-dns-cloudflare
+
+pihole_v6_tls_acme_server: "production"
+pihole_v6_tls_acme_directory_urls:
+  production: "https://acme-v02.api.letsencrypt.org/directory"
+  staging: "https://acme-staging-v02.api.letsencrypt.org/directory"
+
+pihole_v6_tls_dns_propagation_seconds: 60
+pihole_v6_tls_issue_retries: 4
+pihole_v6_tls_issue_delay_seconds: 120
