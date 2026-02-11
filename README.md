@@ -1,4 +1,4 @@
-# ansible.role.pihole-v6
+# ansible.role.pihole_v6
 
 Install and configure Pi-hole v6 on Ubuntu, with optional Unbound, TLS (Let's Encrypt DNS-01 via Cloudflare), API list management, and smoke tests.
 
