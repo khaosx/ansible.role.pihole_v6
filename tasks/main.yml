@@ -20,6 +20,14 @@
   ansible.builtin.import_tasks: install_configure_pihole.yml
   tags: ['pihole_v6', 'install']
 
+- name: Prime Pi-hole gravity database before API list management
+  ansible.builtin.command: pihole -g
+  register: pihole_v6_gravity_prime
+  changed_when: false
+  failed_when: pihole_v6_gravity_prime.rc != 0
+  when: pihole_v6_adlists_present | length > 0
+  tags: ['pihole_v6', 'lists']
+
 - name: Manage Pi-hole adlists via API
   ansible.builtin.import_tasks: manage_pihole_api_lists.yml
   when: pihole_v6_adlists_present | length > 0

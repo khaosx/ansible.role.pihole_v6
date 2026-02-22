@@ -41,7 +41,7 @@
 
 - name: Get current adlists (v6 API)
   ansible.builtin.uri:
-    url: "{{ pihole_v6_api_base_url }}/api/lists"
+    url: "{{ pihole_v6_api_base_url }}/api/lists?type=block"
     method: GET
     headers: "{{ pihole_v6_auth_header }}"
     return_content: true
