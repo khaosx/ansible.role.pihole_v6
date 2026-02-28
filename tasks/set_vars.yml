@@ -19,7 +19,9 @@
 
 - name: Set Vars | Verify required platform variables are defined
   ansible.builtin.assert:
-    that: "{{ __pihole_v6_required_platform_vars | map('regex_replace', '^(.*)$', '\\1 is defined') | list }}"
+    that:
+      - __pihole_v6_unbound_service_name is defined
+      - __pihole_v6_ftl_service_name is defined
     fail_msg: >-
       Platform variable loading failed for
       {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
