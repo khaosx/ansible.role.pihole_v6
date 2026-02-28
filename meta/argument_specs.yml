@@ -1,0 +1,192 @@
+---
+argument_specs:
+  main:
+    short_description: Install and configure Pi-hole v6 with optional Unbound, TLS, and API list management.
+    options:
+      pihole_v6_install_unbound:
+        description: Install and configure local Unbound recursive resolver.
+        type: bool
+        default: true
+      pihole_v6_enable_tls:
+        description: Enable TLS certificate issuance and Pi-hole TLS configuration.
+        type: bool
+        default: true
+      pihole_v6_enable_tests:
+        description: Run DNS smoke tests after configuration.
+        type: bool
+        default: false
+      pihole_v6_setup_dnssec:
+        description: Enable DNSSEC-specific smoke tests.
+        type: bool
+        default: false
+      pihole_v6_ufw_enable:
+        description: Manage Pi-hole firewall exposure through ufw_profiles role.
+        type: bool
+        default: true
+      pihole_v6_ufw_profile:
+        description: UFW application profile definition for Pi-hole services.
+        type: dict
+      pihole_v6_install_script_url:
+        description: Pi-hole unattended installer URL.
+        type: str
+        default: "https://install.pi-hole.net"
+      pihole_v6_listen_address:
+        description: Unbound bind address used by Pi-hole upstream configuration.
+        type: str
+        default: "127.0.0.1"
+      pihole_v6_listen_port:
+        description: Unbound listening port used by Pi-hole upstream configuration.
+        type: int
+        default: 5335
+      pihole_v6_unbound_root_hints_url:
+        description: URL used to fetch Unbound root hints.
+        type: str
+        default: "https://www.internic.net/domain/named.cache"
+      pihole_v6_dns_interface:
+        description: Interface name used in pihole.toml dns.interface.
+        type: str
+        default: "eth0"
+      pihole_v6_dns_listening_mode:
+        description: Listening mode written to pihole.toml dns.listeningMode.
+        type: str
+        default: "BIND"
+      pihole_v6_dns_rev_servers:
+        description: Reverse-server entries written to pihole.toml dns.revServers.
+        type: list
+        elements: str
+        default: []
+      pihole_v6_admin_password:
+        description: Pi-hole admin password used for API authentication.
+        type: str
+        required: false
+      pihole_v6_port:
+        description: Pi-hole web service port.
+        type: int
+        default: 80
+      pihole_v6_api_scheme:
+        description: Scheme used for API access.
+        type: str
+        default: "http"
+      pihole_v6_api_host:
+        description: Hostname used for API access.
+        type: str
+      pihole_v6_api_port:
+        description: Port used for API access.
+        type: raw
+      pihole_v6_api_validate_certs:
+        description: Validate TLS certificates on API requests.
+        type: bool
+        default: false
+      pihole_v6_api_timeout:
+        description: Timeout in seconds for API requests.
+        type: int
+        default: 30
+      pihole_v6_api_wait_timeout:
+        description: Timeout in seconds when waiting for API reachability.
+        type: int
+        default: 60
+      pihole_v6_api_base_url:
+        description: Base URL for Pi-hole API requests.
+        type: str
+      pihole_v6_toml_force:
+        description: Force overwrite pihole.toml on every run.
+        type: bool
+        default: false
+      pihole_v6_local_domain:
+        description: Local DNS domain configured in pihole.toml.
+        type: str
+        default: "local"
+      pihole_v6_web_domain:
+        description: Domain served by Pi-hole web UI.
+        type: str
+      pihole_v6_webserver_acl:
+        description: ACL string for webserver access restrictions.
+        type: str
+        default: ""
+      pihole_v6_webserver_ports:
+        description: Comma-separated webserver port binding string.
+        type: str
+      pihole_v6_webserver_pwhash:
+        description: Pi-hole API password hash stored in pihole.toml.
+        type: str
+        required: false
+      pihole_v6_webserver_app_pwhash:
+        description: Pi-hole application password hash stored in pihole.toml.
+        type: str
+        required: false
+      pihole_v6_adlists_present:
+        description: Desired adlists to ensure via API.
+        type: list
+        elements: dict
+      pihole_v6_default_list_address:
+        description: Default list URL optionally removed after bootstrap.
+        type: str
+        default: "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+      pihole_v6_delete_default_list:
+        description: Remove default adlist after custom list management.
+        type: bool
+        default: true
+      pihole_v6_trigger_gravity:
+        description: Trigger gravity update when list state changes.
+        type: bool
+        default: true
+      pihole_v6_tls_domain:
+        description: Domain used for Let's Encrypt certificate requests.
+        type: str
+      pihole_v6_tls_email:
+        description: Email used for Let's Encrypt ACME registration.
+        type: str
+        default: "root@localhost"
+      pihole_v6_tls_pem_path:
+        description: Path to concatenated Pi-hole TLS PEM file.
+        type: str
+        default: "/etc/pihole/tls.pem"
+      pihole_v6_tls_cloudflare_api_token:
+        description: Cloudflare API token for DNS-01 challenge.
+        type: str
+        default: ""
+      pihole_v6_tls_pem_owner:
+        description: Owner for Pi-hole TLS PEM file.
+        type: str
+        default: "root"
+      pihole_v6_tls_pem_group:
+        description: Group for Pi-hole TLS PEM file.
+        type: str
+        default: "pihole"
+      pihole_v6_tls_pem_mode:
+        description: File mode for Pi-hole TLS PEM file.
+        type: str
+        default: "0640"
+      pihole_v6_tls_cf_creds_dir:
+        description: Directory path for certbot Cloudflare credentials file.
+        type: str
+        default: "/root/.secrets/certbot"
+      pihole_v6_tls_cf_creds_file:
+        description: File path for certbot Cloudflare credentials file.
+        type: str
+      pihole_v6_tls_packages:
+        description: Certbot packages required for DNS-01 challenge.
+        type: list
+        elements: str
+      pihole_v6_tls_acme_server:
+        description: ACME endpoint selector (production or staging).
+        type: str
+        choices:
+          - production
+          - staging
+        default: production
+      pihole_v6_tls_acme_directory_urls:
+        description: Mapping of ACME endpoint names to directory URLs.
+        type: dict
+      pihole_v6_tls_dns_propagation_seconds:
+        description: Wait time in seconds for DNS propagation before validation.
+        type: int
+        default: 60
+      pihole_v6_tls_issue_retries:
+        description: Retry count for certificate issuance failures.
+        type: int
+        default: 4
+      pihole_v6_tls_issue_delay_seconds:
+        description: Delay in seconds between certificate issuance retries.
+        type: int
+        default: 120

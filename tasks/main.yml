@@ -1,59 +1,69 @@
 ---
+- name: Main | Load platform variables
+  ansible.builtin.import_tasks: set_vars.yml
 
-- name: Allow Pi-hole v6 services
+- name: Main | Allow Pi-hole v6 services
   ansible.builtin.import_role:
     name: ufw_profiles
   vars:
     ufw_profiles_catalog:
       - "{{ pihole_v6_ufw_profile }}"
     ufw_profiles_allow_applications:
-      - "{{ pihole_v6_ufw_profile.name }}"
+      - "{{ pihole_v6_ufw_profile['name'] }}"
   when: pihole_v6_ufw_enable | bool
-  tags: ['pihole_v6', 'ufw']
+  tags: ["pihole_v6", "ufw"]
 
-- name: Install Unbound
+- name: Main | Install and configure Unbound
   ansible.builtin.import_tasks: install_configure_unbound.yml
   when: pihole_v6_install_unbound | bool
-  tags: ['pihole_v6', 'unbound']
+  tags: ["pihole_v6", "unbound"]
 
-- name: Install Pi-hole
+- name: Main | Install and configure Pi-hole
   ansible.builtin.import_tasks: install_configure_pihole.yml
-  tags: ['pihole_v6', 'install']
+  tags: ["pihole_v6", "install"]
 
-- name: Prime Pi-hole gravity database before API list management
+# command is required because Pi-hole does not provide a module for gravity updates.
+- name: Main | Prime gravity database before API list management
   ansible.builtin.command: pihole -g
-  register: pihole_v6_gravity_prime
+  register: __pihole_v6_gravity_prime
   changed_when: false
-  failed_when: pihole_v6_gravity_prime.rc != 0
-  when: pihole_v6_adlists_present | length > 0
-  tags: ['pihole_v6', 'lists']
+  failed_when: __pihole_v6_gravity_prime.rc != 0
+  when:
+    - pihole_v6_adlists_present | length > 0
+    - not ansible_check_mode
+  tags: ["pihole_v6", "lists"]
 
-- name: Manage Pi-hole adlists via API
+- name: Main | Manage Pi-hole adlists via API
   ansible.builtin.import_tasks: manage_pihole_api_lists.yml
   when: pihole_v6_adlists_present | length > 0
-  tags: ['pihole_v6', 'lists']
+  tags: ["pihole_v6", "lists"]
 
-- name: Configure Pi-hole TLS
+- name: Main | Configure Pi-hole TLS
   ansible.builtin.import_tasks: obtain_letsencrypt_certs.yml
   when: pihole_v6_enable_tls | bool
-  tags: ['pihole_v6', 'tls']
+  tags: ["pihole_v6", "tls"]
 
-- name: Update Pi-hole if installed
+# command is required because Pi-hole update is exposed only through its CLI.
+- name: Main | Update Pi-hole installation
   ansible.builtin.command: pihole -up
-  register: pihole_v6_up
-  changed_when: "'up to date' not in (pihole_v6_up.stdout | lower)"
-  failed_when: pihole_v6_up.rc != 0
-  tags: ['pihole_v6', 'updates-patches']
+  register: __pihole_v6_update
+  changed_when: "'up to date' not in (__pihole_v6_update.stdout | lower)"
+  failed_when: __pihole_v6_update.rc != 0
+  when: not ansible_check_mode
+  tags: ["pihole_v6", "updates_patches"]
 
-- name: Trigger Pi-hole gravity update
+# command is required because Pi-hole does not provide a module for gravity updates.
+- name: Main | Trigger gravity update
   ansible.builtin.command: pihole -g
-  register: pihole_v6_gravity
-  changed_when: "'No changes detected' not in pihole_v6_gravity.stdout"
-  failed_when: pihole_v6_gravity.rc != 0
-  when: pihole_v6_trigger_gravity | bool
-  tags: ['pihole_v6', 'updates-patches']
+  register: __pihole_v6_gravity
+  changed_when: "'No changes detected' not in __pihole_v6_gravity.stdout"
+  failed_when: __pihole_v6_gravity.rc != 0
+  when:
+    - pihole_v6_trigger_gravity | bool
+    - not ansible_check_mode
+  tags: ["pihole_v6", "updates_patches"]
 
-- name: Test Pi-hole
+- name: Main | Run DNS smoke tests
   ansible.builtin.import_tasks: test_pihole.yml
   when: pihole_v6_enable_tests | bool
-  tags: ['pihole_v6', 'test']
+  tags: ["pihole_v6", "test"]

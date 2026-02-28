@@ -1,18 +1,22 @@
 ---
-
-- name: Restart Unbound
-  ansible.builtin.service:
-    name: unbound
+- name: Pihole_v6 | Restart unbound service
+  ansible.builtin.systemd:
+    name: "{{ __pihole_v6_unbound_service_name }}"
     state: restarted
+    daemon_reload: true
 
-- name: Restart Pi-hole FTL
-  ansible.builtin.service:
-    name: pihole-FTL
+- name: Pihole_v6 | Restart Pi-hole FTL service
+  ansible.builtin.systemd:
+    name: "{{ __pihole_v6_ftl_service_name }}"
     state: restarted
+    daemon_reload: true
 
-- name: Update Pi-hole gravity
+# command is required because Pi-hole does not provide a module for gravity updates.
+- name: Pihole_v6 | Update gravity database
   ansible.builtin.command: pihole -g
-  register: _pihole_v6_gravity_run
-  changed_when: "'No changes detected' not in _pihole_v6_gravity_run.stdout"
-  failed_when: _pihole_v6_gravity_run.rc != 0
-  when: pihole_v6_trigger_gravity | bool
+  register: __pihole_v6_gravity_run
+  changed_when: "'No changes detected' not in __pihole_v6_gravity_run.stdout"
+  failed_when: __pihole_v6_gravity_run.rc != 0
+  when:
+    - pihole_v6_trigger_gravity | bool
+    - not ansible_check_mode

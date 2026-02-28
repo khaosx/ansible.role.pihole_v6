@@ -1,7 +1,7 @@
+{{ ansible_managed | comment }}
+
 # Pi-hole configuration file (v6.2.3)
 # Encoding: UTF-8
-# This file is managed by pihole-FTL
-# Last updated on 2025-08-30 21:25:30 UTC
 
 [dns]
   # Array of upstream DNS servers used by Pi-hole
@@ -147,7 +147,7 @@
   #
   # Possible values are:
   #     a valid interface name
-  interface = "eth0"
+  interface = "{{ pihole_v6_dns_interface }}"
 
   # Add A, AAAA and PTR records to the DNS. This adds one or more names to the DNS with
   # associated IPv4 (A) and IPv6 (AAAA) records
@@ -189,7 +189,7 @@
   #       configuration file. This is useful if you want to manually configure the
   #       listening mode in auxiliary configuration files. This option is really meant
   #       for advanced users only, support for this option may be limited.
-  listeningMode = "BIND" ### CHANGED, default = "LOCAL"
+  listeningMode = "{{ pihole_v6_dns_listening_mode }}" ### CHANGED, default = "LOCAL"
 
   # Log DNS queries and replies to pihole.log
   queryLogging = true
@@ -227,12 +227,7 @@
   #     array of reverse servers each one in one of the following forms:
   #     "<enabled>,<ip-address>[/<prefix-len>],<server>[#<port>][,<domain>]", e.g.,
   #     "true,192.168.0.0/24,192.168.0.1,fritz.box"
-  revServers = [
-    "true,10.0.10.1/24,10.0.10.1,khaosx.io",
-    "true,10.0.20.1/24,10.0.10.1,khaosx.io",
-    "true,10.0.50.1/24,10.0.10.1,khaosx.io",
-    "true,10.0.60.1/24,10.0.10.1,khaosx.io"
-  ] ### CHANGED, default = []
+  revServers = {{ pihole_v6_dns_rev_servers | tojson }} ### CHANGED, default = []
 
   [dns.cache]
     # Cache size of the DNS server. Note that expiring cache entries naturally make room

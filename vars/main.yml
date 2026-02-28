@@ -1,0 +1,10 @@
+---
+__pihole_v6_required_facts:
+  - "os_family"
+  - "distribution"
+  - "distribution_major_version"
+  - "distribution_version"
+
+__pihole_v6_required_platform_vars:
+  - "__pihole_v6_unbound_service_name"
+  - "__pihole_v6_ftl_service_name"

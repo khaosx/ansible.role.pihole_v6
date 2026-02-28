@@ -1,0 +1,3 @@
+---
+__pihole_v6_unbound_service_name: "unbound"
+__pihole_v6_ftl_service_name: "pihole-FTL"

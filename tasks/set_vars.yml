@@ -1,0 +1,26 @@
+---
+- name: Set Vars | Ensure required facts are available
+  ansible.builtin.setup:
+    gather_subset: min
+  when: >-
+    not ansible_facts.keys() | list |
+    intersect(__pihole_v6_required_facts) == __pihole_v6_required_facts
+
+- name: Set Vars | Load platform version specific variables
+  ansible.builtin.include_vars: "{{ __pihole_v6_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    __pihole_v6_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: __pihole_v6_vars_file is file
+
+- name: Set Vars | Verify required platform variables are defined
+  ansible.builtin.assert:
+    that: "{{ __pihole_v6_required_platform_vars | map('regex_replace', '^(.*)$', '\\1 is defined') | list }}"
+    fail_msg: >-
+      Platform variable loading failed for
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
+      No matching vars file found in {{ role_path }}/vars/.

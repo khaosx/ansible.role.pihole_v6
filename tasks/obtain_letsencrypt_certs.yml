@@ -1,19 +1,18 @@
 ---
-
-- name: Assert CF token present
+- name: Obtain Letsencrypt Certs | Assert Cloudflare API token is present
   ansible.builtin.assert:
-    that: pihole_v6_tls_cloudflare_api_token | length > 0
+    that:
+      - pihole_v6_tls_cloudflare_api_token | length > 0
     fail_msg: "Missing Cloudflare token (pihole_v6_tls_cloudflare_api_token)."
   no_log: true
 
-
-- name: Install certbot + DNS plugin
+- name: Obtain Letsencrypt Certs | Install certbot packages
   ansible.builtin.apt:
     name: "{{ pihole_v6_tls_packages }}"
     state: present
     update_cache: true
 
-- name: Create credentials directory
+- name: Obtain Letsencrypt Certs | Ensure credentials directory exists
   ansible.builtin.file:
     path: "{{ pihole_v6_tls_cf_creds_dir }}"
     state: directory
@@ -21,21 +20,23 @@
     group: root
     mode: "0700"
 
-- name: Write Cloudflare credentials
+- name: Obtain Letsencrypt Certs | Write Cloudflare credentials file
   ansible.builtin.template:
     src: cloudflare.ini.j2
     dest: "{{ pihole_v6_tls_cf_creds_file }}"
     owner: root
     group: root
     mode: "0600"
+    backup: true
   no_log: true
 
-- name: Check if live cert already exists
+- name: Obtain Letsencrypt Certs | Check if certificate already exists
   ansible.builtin.stat:
     path: "/etc/letsencrypt/live/{{ pihole_v6_tls_domain }}/fullchain.pem"
-  register: pihole_v6_live_cert
+  register: __pihole_v6_live_cert
 
-- name: Obtain certificate from Let's Encrypt
+# command is required because certbot certificate issuance is CLI-driven.
+- name: Obtain Letsencrypt Certs | Issue certificate
   ansible.builtin.command:
     argv:
       - /usr/bin/certbot
@@ -53,14 +54,16 @@
       - "{{ pihole_v6_tls_acme_directory_urls[pihole_v6_tls_acme_server] }}"
       - -d
       - "{{ pihole_v6_tls_domain }}"
-  register: pihole_v6_certbot_issue
+  register: __pihole_v6_certbot_issue
   retries: "{{ pihole_v6_tls_issue_retries | int + 1 }}"
   delay: "{{ pihole_v6_tls_issue_delay_seconds | int }}"
-  until: pihole_v6_certbot_issue.rc == 0
-  changed_when: not pihole_v6_live_cert.stat.exists
-  when: not pihole_v6_live_cert.stat.exists
+  until: __pihole_v6_certbot_issue.rc == 0
+  changed_when: not __pihole_v6_live_cert.stat.exists
+  when:
+    - not __pihole_v6_live_cert.stat.exists
+    - not ansible_check_mode
 
-- name: Ensure Certbot deploy-hook directory exists
+- name: Obtain Letsencrypt Certs | Ensure deploy-hook directory exists
   ansible.builtin.file:
     path: /etc/letsencrypt/renewal-hooks/deploy
     state: directory
@@ -68,15 +71,17 @@
     group: root
     mode: "0755"
 
-- name: Install deploy hook for renewals
+- name: Obtain Letsencrypt Certs | Install renewal deploy hook
   ansible.builtin.template:
     src: pihole-ftl-renewal.sh.j2
     dest: /etc/letsencrypt/renewal-hooks/deploy/pihole-ftl-renewal.sh
     owner: root
     group: root
     mode: "0755"
+    backup: true
 
-- name: Rebuild Pi-hole PEM from LE fullchain+key if content differs (POSIX sh)
+# shell is required for atomic concatenate+compare+install in a single remote execution.
+- name: Obtain Letsencrypt Certs | Rebuild Pi-hole PEM when certificate content changed
   ansible.builtin.shell: |
     set -eu
     LIVE_DIR="/etc/letsencrypt/live/{{ pihole_v6_tls_domain }}"
@@ -90,16 +95,17 @@
         "$TMP" "{{ pihole_v6_tls_pem_path }}"
       echo CHANGED
     fi
-  register: pihole_v6_pem_update
-  changed_when: "'CHANGED' in pihole_v6_pem_update.stdout"
+  register: __pihole_v6_pem_update
+  changed_when: "'CHANGED' in __pihole_v6_pem_update.stdout"
   when:
-    - pihole_v6_live_cert.stat.exists or (pihole_v6_certbot_issue is defined and pihole_v6_certbot_issue.rc == 0)
-  notify: Restart Pi-hole FTL
+    - __pihole_v6_live_cert.stat.exists or (__pihole_v6_certbot_issue is defined and __pihole_v6_certbot_issue.rc == 0)
+    - not ansible_check_mode
+  notify: Pihole_v6 | Restart Pi-hole FTL service
 
-- name: Ensure correct permissions on Pi-hole PEM file
+- name: Obtain Letsencrypt Certs | Ensure PEM ownership and permissions are correct
   ansible.builtin.file:
     path: "{{ pihole_v6_tls_pem_path }}"
     owner: "{{ pihole_v6_tls_pem_owner }}"
     group: "{{ pihole_v6_tls_pem_group }}"
     mode: "{{ pihole_v6_tls_pem_mode }}"
-  when: pihole_v6_live_cert.stat.exists or pihole_v6_certbot_issue.changed
+  when: __pihole_v6_live_cert.stat.exists or (__pihole_v6_certbot_issue is defined and __pihole_v6_certbot_issue.changed)

@@ -1,4 +1,4 @@
-# {{ ansible_managed | comment }}
+{{ ansible_managed | comment }}
 
 #!/usr/bin/env bash
 set -euo pipefail
@@ -7,12 +7,12 @@ DOMAIN="{{ pihole_v6_tls_domain }}"
 LIVE_DIR="/etc/letsencrypt/live/${DOMAIN}"
 OUT="{{ pihole_v6_tls_pem_path }}"
 
-# Concatenate fullchain + privkey exactly as Pi-hole expects
+# Concatenate fullchain and private key exactly as Pi-hole expects.
 cat "${LIVE_DIR}/fullchain.pem" "${LIVE_DIR}/privkey.pem" > "${OUT}"
 
-# Ownership & perms — use configured owner/group
+# Apply configured ownership and permissions.
 chown {{ pihole_v6_tls_pem_owner }}:{{ pihole_v6_tls_pem_group }} "${OUT}"
 chmod {{ pihole_v6_tls_pem_mode }} "${OUT}"
 
-# Bounce FTL so it picks up the renewed cert
+# Restart FTL so renewed certificate is loaded.
 systemctl restart pihole-FTL

@@ -1,34 +1,40 @@
 ---
-
-- name: Install Unbound
+- name: Install Configure Unbound | Install Unbound package
   ansible.builtin.apt:
-    name: unbound
+    name: "{{ __pihole_v6_unbound_service_name }}"
     state: present
     update_cache: true
 
-- name: Ensure unbound include directory exists
+- name: Install Configure Unbound | Ensure include directory exists
   ansible.builtin.file:
-    path: /etc/unbound/unbound.conf.d
+    path: "/etc/unbound/unbound.conf.d"
     state: directory
+    owner: root
+    group: root
     mode: "0755"
 
-- name: Configure Unbound for Pi-hole
+- name: Install Configure Unbound | Deploy Pi-hole resolver configuration
   ansible.builtin.template:
-    src: pi-hole.conf.j2
-    dest: /etc/unbound/unbound.conf.d/pi-hole.conf
+    src: "pi-hole.conf.j2"
+    dest: "/etc/unbound/unbound.conf.d/pi-hole.conf"
+    owner: root
+    group: root
     mode: "0644"
-  notify: Restart Unbound
+    backup: true
+  notify: Pihole_v6 | Restart unbound service
 
-- name: Download root hints file
+- name: Install Configure Unbound | Download root hints
   ansible.builtin.get_url:
     url: "{{ pihole_v6_unbound_root_hints_url }}"
-    dest: /etc/unbound/root.hints
+    dest: "/etc/unbound/root.hints"
+    owner: root
+    group: root
     mode: "0644"
-  notify: Restart Unbound
+  notify: Pihole_v6 | Restart unbound service
 
-- name: Ensure Unbound is enabled & running
-  ansible.builtin.service:
-    name: unbound
+- name: Install Configure Unbound | Ensure Unbound service is enabled and running
+  ansible.builtin.systemd:
+    name: "{{ __pihole_v6_unbound_service_name }}"
     enabled: true
     state: started
     daemon_reload: true

@@ -1,10 +1,10 @@
-# {{ ansible_managed | comment }}
-#
+{{ ansible_managed | comment }}
+
 server:
   interface: {{ pihole_v6_listen_address }}
   port: {{ pihole_v6_listen_port }}
   do-ip6: no
-  # Allow UDP (and TCP) queries from localhost
+  # Allow UDP and TCP queries from localhost.
   do-udp: yes
   do-tcp: yes
   access-control: 127.0.0.0/8 allow

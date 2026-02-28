@@ -21,16 +21,20 @@ pihole_v6_ufw_profile:
 # Install
 pihole_v6_install_script_url: "https://install.pi-hole.net"
 
-# Unbound
+# DNS/Unbound
 pihole_v6_listen_address: "127.0.0.1"
 pihole_v6_listen_port: 5335
 pihole_v6_unbound_root_hints_url: "https://www.internic.net/domain/named.cache"
+pihole_v6_dns_interface: "eth0"
+pihole_v6_dns_listening_mode: "BIND"
+pihole_v6_dns_rev_servers: []
 
 # API access
-pihole_v6_admin_password: "{{ app_admin_user_pw }}"
+# (Required when API list management is enabled)
+# pihole_v6_admin_password:
 pihole_v6_port: 80
 pihole_v6_api_scheme: "http"
-pihole_v6_api_host: "{{ ansible_host | default(ansible_fqdn | default(inventory_hostname)) }}"
+pihole_v6_api_host: "{{ ansible_host | default(inventory_hostname) }}"
 pihole_v6_api_port: "{{ pihole_v6_port }}"
 pihole_v6_api_validate_certs: false
 pihole_v6_api_timeout: 30
@@ -39,15 +43,17 @@ pihole_v6_api_base_url: "{{ pihole_v6_api_scheme }}://{{ pihole_v6_api_host }}:{
 
 # pihole.toml seeding
 pihole_v6_toml_force: false
-pihole_v6_local_domain: "{{ site_domain | default('local') }}"
+pihole_v6_local_domain: "local"
 
 # Web UI
-pihole_v6_web_domain: "{{ inventory_hostname }}.{{ site_domain }}"
+pihole_v6_web_domain: "{{ inventory_hostname }}.{{ pihole_v6_local_domain }}"
 pihole_v6_webserver_acl: ""
 pihole_v6_webserver_ports: >-
   {{ "80,443os,[::]:80o,[::]:443os" if pihole_v6_enable_tls | bool else "80,[::]:80o" }}
-pihole_v6_webserver_pwhash: "{{ vault_pihole_webserver_pwhash }}"
-pihole_v6_webserver_app_pwhash: "{{ vault_pihole_webserver_app_pwhash }}"
+# (Required) Pi-hole web/API password hash
+# pihole_v6_webserver_pwhash:
+# (Required) Pi-hole application password hash
+# pihole_v6_webserver_app_pwhash:
 
 # Adlists
 pihole_v6_adlists_present:
@@ -67,10 +73,10 @@ pihole_v6_delete_default_list: true
 pihole_v6_trigger_gravity: true
 
 # TLS (Let's Encrypt DNS-01 via Cloudflare)
-pihole_v6_tls_domain: "{{ inventory_hostname }}.{{ site_domain }}"
-pihole_v6_tls_email: "{{ configure_ssl_email | default('root@localhost') }}"
+pihole_v6_tls_domain: "{{ inventory_hostname }}.{{ pihole_v6_local_domain }}"
+pihole_v6_tls_email: "root@localhost"
 pihole_v6_tls_pem_path: "/etc/pihole/tls.pem"
-pihole_v6_tls_cloudflare_api_token: "{{ configure_ssl_cloudflare_api_token | default('') }}"
+pihole_v6_tls_cloudflare_api_token: ""
 
 pihole_v6_tls_pem_owner: "root"
 pihole_v6_tls_pem_group: "pihole"
